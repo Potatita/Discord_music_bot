@@ -32,7 +32,7 @@ def run_bot():
 
     @client.command(name="play")
     async def play(ctx, *, link):
-        """Reproduce una canción desde YouTube. Si ya está sonando algo, agrega la canción a la cola."""
+        """Reproduce una canción o la agrega a la cola preprocesando su información."""
         try:
             # Conectar al canal de voz del usuario si no está conectado
             if ctx.guild.id not in voice_clients or not voice_clients[ctx.guild.id].is_connected():
@@ -48,14 +48,24 @@ def run_bot():
                 search_results = re.findall(r'/watch\?v=(.{11})', content.read().decode())
                 link = youtube_watch_url + search_results[0]
 
-            # Agregar la canción a la cola
+            # Preprocesar la canción (extraer información)
+            loop = asyncio.get_event_loop()
+            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(link, download=False))
+
+            # Almacenar la información preprocesada en la cola
+            song_info = {
+                "title": data.get("title", "Título desconocido"),
+                "url": data["url"],
+                "webpage_url": data["webpage_url"]
+            }
+
             if ctx.guild.id not in queues:
                 queues[ctx.guild.id] = []
-            queues[ctx.guild.id].append(link)
+            queues[ctx.guild.id].append(song_info)
 
-            # Si ya está reproduciendo, solo agregar a la cola y enviar mensaje
+            # Verificar si el bot ya está reproduciendo algo
             if voice_client.is_playing():
-                await ctx.send(f"Agregado a la cola: {link}")
+                await ctx.send(f"Agregado a la cola: {song_info['title']} - {song_info['webpage_url']}")
             else:
                 # Iniciar la reproducción si no hay nada sonando
                 await play_next(ctx)
@@ -68,21 +78,16 @@ def run_bot():
         """Función para reproducir la siguiente canción en la cola."""
         try:
             if ctx.guild.id in queues and queues[ctx.guild.id]:
-                # Obtener el siguiente enlace en la cola
-                link = queues[ctx.guild.id].pop(0)
-
-                # Descargar información del video con yt_dlp
-                loop = asyncio.get_event_loop()
-                data = await loop.run_in_executor(None, lambda: ytdl.extract_info(link, download=False))
-                song = data['url']
+                # Obtener la siguiente canción en la cola
+                song_info = queues[ctx.guild.id].pop(0)
 
                 # Crear el reproductor de audio
-                player = discord.FFmpegOpusAudio(song, **ffmpeg_options)
+                player = discord.FFmpegOpusAudio(song_info["url"], **ffmpeg_options)
 
                 # Reproducir la canción
                 voice_clients[ctx.guild.id].play(player, after=lambda e: asyncio.run_coroutine_threadsafe(play_next(ctx), client.loop))
 
-                await ctx.send(f"Reproduciendo: {data['title']}")
+                await ctx.send(f"Reproduciendo: {song_info['title']} - {song_info['webpage_url']}")
             else:
                 # Si no hay más canciones, desconectar
                 await ctx.send("La cola está vacía. Desconectando...")
