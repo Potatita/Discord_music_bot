@@ -52,11 +52,15 @@ def run_bot():
             loop = asyncio.get_event_loop()
             data = await loop.run_in_executor(None, lambda: ytdl.extract_info(link, download=False))
 
+            # Obtener la duración en formato mm:ss
+            duration = f"{int(data['duration'] // 60)}:{int(data['duration'] % 60):02d}"
+
             # Almacenar la información preprocesada en la cola
             song_info = {
                 "title": data.get("title", "Título desconocido"),
                 "url": data["url"],
-                "webpage_url": data["webpage_url"]
+                "webpage_url": data["webpage_url"],
+                "duration": duration
             }
 
             if ctx.guild.id not in queues:
@@ -65,14 +69,13 @@ def run_bot():
 
             # Verificar si el bot ya está reproduciendo algo
             if voice_client.is_playing():
-                await ctx.send(f"Agregado a la cola: {song_info['title']} - {song_info['webpage_url']}")
+                await ctx.send(f"Agregado a la cola: {song_info['title']} - ⏱ {song_info['duration']}")
             else:
                 # Iniciar la reproducción si no hay nada sonando
                 await play_next(ctx)
 
         except Exception as e:
             await ctx.send(f"Error en el comando play: {e}")
-
 
     async def play_next(ctx):
         """Función para reproducir la siguiente canción en la cola."""
@@ -130,13 +133,22 @@ def run_bot():
         except Exception as e:
             print(e)
 
-    @client.command(name="list")
-    async def list(ctx):
+    @client.command(name="queue")
+    async def queue(ctx):
+        """Muestra la lista de canciones encoladas con sus nombres y duración."""
         try:
-            for q in queues[ctx.guild.id]:
-                await ctx.send(q) 
+            if ctx.guild.id not in queues or not queues[ctx.guild.id]:
+                await ctx.send("La cola está vacía.")
+                return
+            
+            queue_message = "**Canciones en la cola:**\n"
+            for idx, song in enumerate(queues[ctx.guild.id], start=1):
+                queue_message += f"{idx}. **{song['title']}** - ⏱ {song['duration']}\n"
+            
+            await ctx.send(queue_message)
         except Exception as e:
-            print(e)
+            await ctx.send(f"Error al mostrar la cola: {e}")
+
         
     @client.command(name="skip")
     async def skip(ctx):
