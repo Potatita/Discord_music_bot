@@ -69,7 +69,7 @@ def run_bot():
 
             # Verificar si el bot ya está reproduciendo algo
             if voice_client.is_playing():
-                await ctx.send(f"Agregado a la cola: {song_info['title']} - ⏱ {song_info['duration']}")
+                await ctx.send(f"🎵 ***Agregado a la cola:*** {song_info['webpage_url']}")
             else:
                 # Iniciar la reproducción si no hay nada sonando
                 await play_next(ctx)
