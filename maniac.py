@@ -161,14 +161,19 @@ def run_bot():
     
     @client.command(name="ayuda")
     async def help(ctx):
+        """Comando de ayuda pa weones."""
+        help_message ="```"
         """Muestra dinámicamente una lista de comandos disponibles y sus descripciones."""
-        help_message = "**Lista de Comandos Disponibles:**\n\n"
+        help_message += "Lista de Comandos Disponibles:\n\n"
         
         # Iterar sobre todos los comandos registrados
+        
         for command in client.commands:
             # Agregar el nombre y el `help` (docstring) de cada comando al mensaje
-            help_message += f"**?{command.name}**\n  - {command.help if command.help else 'Sin descripción.'}\n\n"
-        
+            if command.name == "help":
+                continue
+            help_message += f"?{command.name} : {command.help if command.help else 'Sin descripción.'}\n"
+        help_message +="```"
         await ctx.send(help_message)
 
 
