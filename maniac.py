@@ -32,6 +32,7 @@ def run_bot():
 
     @client.command(name="play")
     async def play(ctx, *, link):
+        """Reproduce una canción desde YouTube. Si ya está sonando algo, agrega la canción a la cola."""
         try:
             # Conectar al canal de voz del usuario si no está conectado
             if ctx.guild.id not in voice_clients or not voice_clients[ctx.guild.id].is_connected():
@@ -92,6 +93,7 @@ def run_bot():
 
     @client.command(name="clear_queue")
     async def clear_queue(ctx):
+        """Limpia toda la cola de reproducción."""
         if ctx.guild.id in queues:
             queues[ctx.guild.id].clear()
             await ctx.send("Queue cleared!")
@@ -100,6 +102,7 @@ def run_bot():
 
     @client.command(name="pause")
     async def pause(ctx):
+        """Pausa la canción actual."""
         try:
             voice_clients[ctx.guild.id].pause()
         except Exception as e:
@@ -114,6 +117,7 @@ def run_bot():
 
     @client.command(name="stop")
     async def stop(ctx):
+        """Detiene la reproducción y desconecta al bot del canal de voz."""
         try:
             voice_clients[ctx.guild.id].stop()
             await voice_clients[ctx.guild.id].disconnect()
@@ -131,11 +135,25 @@ def run_bot():
         
     @client.command(name="skip")
     async def skip(ctx):
+        """Salta a la siguiente canción en la cola."""
         if ctx.guild.id in voice_clients and voice_clients[ctx.guild.id].is_playing():
             voice_clients[ctx.guild.id].stop()  # Detener la canción actual
             await ctx.send("Saltando a la siguiente canción...")
         else:
             await ctx.send("No hay ninguna canción reproduciéndose.")
+    
+    @client.command(name="ayuda")
+    async def help(ctx):
+        """Muestra dinámicamente una lista de comandos disponibles y sus descripciones."""
+        help_message = "**Lista de Comandos Disponibles:**\n\n"
+        
+        # Iterar sobre todos los comandos registrados
+        for command in client.commands:
+            # Agregar el nombre y el `help` (docstring) de cada comando al mensaje
+            help_message += f"**?{command.name}**\n  - {command.help if command.help else 'Sin descripción.'}\n\n"
+        
+        await ctx.send(help_message)
+
 
 
     client.run(TOKEN)
