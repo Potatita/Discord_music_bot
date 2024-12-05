@@ -20,6 +20,7 @@ def run_bot():
     youtube_watch_url = youtube_base_url + 'watch?v='
     yt_dl_options = {"format": "bestaudio/best"}
     ytdl = yt_dlp.YoutubeDL(yt_dl_options)
+    current_song = {}
 
     ffmpeg_options = {  
                         'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5','options': '-vn -filter:a "volume=1"',
@@ -90,14 +91,21 @@ def run_bot():
                 # Reproducir la canción
                 voice_clients[ctx.guild.id].play(player, after=lambda e: asyncio.run_coroutine_threadsafe(play_next(ctx), client.loop))
 
-                await ctx.send(f"Reproduciendo: {song_info['title']} - {song_info['webpage_url']}")
+                await ctx.send(f"Reproduciendo: **{song_info['title']}** - {song_info['webpage_url']}")
             else:
-                # Si no hay más canciones, desconectar
-                await ctx.send("La cola está vacía. Desconectando...")
-                await voice_clients[ctx.guild.id].disconnect()
-                del voice_clients[ctx.guild.id]
+                # Si no hay más canciones, esperar 9 minutos antes de desconectar
+                await ctx.send("La cola está vacía. Esperando 9 minutos antes de desconectarme...")
+                await asyncio.sleep(540)  # 9 minutos en segundos
+
+                # Verificar si se añadió algo a la cola o se está reproduciendo algo
+                if not voice_clients[ctx.guild.id].is_playing() and not queues[ctx.guild.id]:
+                    await ctx.send("No se añadieron nuevas canciones. Desconectándome...")
+                    await voice_clients[ctx.guild.id].disconnect()
+                    del voice_clients[ctx.guild.id]
+                else:
+                    await ctx.send("Se añadieron canciones mientras esperaba. Continuando conectado.")
         except Exception as e:
-            await ctx.send(f"Error al reproducir la siguiente canción: {e}")
+            await ctx.send(f"Error al manejar la cola: {e}")
 
     @client.command(name="clear_queue")
     async def clear_queue(ctx):
@@ -175,6 +183,24 @@ def run_bot():
             help_message += f"?{command.name} : {command.help if command.help else 'Sin descripción.'}\n"
         help_message +="```"
         await ctx.send(help_message)
+
+    @client.command(name="current", aliases=["np"])
+    async def current(ctx):
+        """Muestra la canción que se está reproduciendo actualmente."""
+        try:
+            # Verificar si el bot está conectado y reproduciendo algo
+            if ctx.guild.id in voice_clients and voice_clients[ctx.guild.id].is_playing():
+                # Obtener la canción actual (la última canción reproducida de la cola)
+                current_song = queues[ctx.guild.id][0] if queues[ctx.guild.id] else None
+                
+                if current_song:
+                    await ctx.send(f"🎶 Reproduciendo ahora: **{current_song['title']}** - {current_song['webpage_url']}")
+                else:
+                    await ctx.send("🎶 Reproduciendo ahora: Canción desconocida.")
+            else:
+                await ctx.send("No hay ninguna canción reproduciéndose en este momento.")
+        except Exception as e:
+            await ctx.send(f"Error al obtener la canción actual: {e}")
 
 
 
