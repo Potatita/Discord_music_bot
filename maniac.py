@@ -31,7 +31,7 @@ def run_bot():
     async def on_ready():
         print(f'{client.user} esta corriendo')
 
-    @client.command(name="play")
+    @client.command(name="play",  aliases=["p"])
     async def play(ctx, *, link):
         """Reproduce una canción o la agrega a la cola preprocesando su información."""
         try:
@@ -106,7 +106,7 @@ def run_bot():
         except Exception as e:
             await ctx.send(f"Error al manejar la cola: {e}")
 
-    @client.command(name="clear_queue")
+    @client.command(name="clear_queue",  aliases=["clear"])
     async def clear_queue(ctx):
         """Limpia toda la cola de reproducción."""
         if ctx.guild.id in queues:
@@ -130,7 +130,7 @@ def run_bot():
         except Exception as e:
             print(e)
 
-    @client.command(name="stop")
+    @client.command(name="stop",  aliases=["kill"])
     async def stop(ctx):
         """Detiene la reproducción y desconecta al bot del canal de voz."""
         try:
@@ -140,7 +140,7 @@ def run_bot():
         except Exception as e:
             print(e)
 
-    @client.command(name="queue")
+    @client.command(name="queue",  aliases=["q"])
     async def queue(ctx):
         """Muestra la lista de canciones encoladas con sus nombres y duración."""
         try:
@@ -157,7 +157,7 @@ def run_bot():
             await ctx.send(f"Error al mostrar la cola: {e}")
 
         
-    @client.command(name="skip")
+    @client.command(name="skip", aliases=["s"])
     async def skip(ctx):
         """Salta a la siguiente canción en la cola."""
         if ctx.guild.id in voice_clients and voice_clients[ctx.guild.id].is_playing():
@@ -183,7 +183,7 @@ def run_bot():
         help_message +="```"
         await ctx.send(help_message)
 
-    @client.command(name="current", aliases=["np"])
+    @client.command(name="current", aliases=["np", "cs", "c"])
     async def current(ctx):
         """Muestra la canción que se está reproduciendo actualmente."""
         try:
@@ -195,6 +195,50 @@ def run_bot():
                 await ctx.send("No hay ninguna canción reproduciéndose en este momento.")
         except Exception as e:
             await ctx.send(f"Error al obtener la canción actual: {e}")
+
+    @client.command(name="corxea", aliases=["corchea"])
+    async def corxea(ctx):
+        """Agrega el video 'https://www.youtube.com/watch?v=JwwizYSyaGM' a la cola."""
+        try:
+            # Enlace fijo del video
+            link = "https://www.youtube.com/watch?v=JwwizYSyaGM"
+
+            # Conectar al canal de voz del usuario si no está conectado
+            if ctx.guild.id not in voice_clients or not voice_clients[ctx.guild.id].is_connected():
+                voice_client = await ctx.author.voice.channel.connect()
+                voice_clients[ctx.guild.id] = voice_client
+            else:
+                voice_client = voice_clients[ctx.guild.id]
+
+            # Preprocesar la canción (extraer información)
+            loop = asyncio.get_event_loop()
+            data = await loop.run_in_executor(None, lambda: ytdl.extract_info(link, download=False))
+
+            # Obtener la duración en formato mm:ss
+            duration = f"{int(data['duration'] // 60)}:{int(data['duration'] % 60):02d}"
+
+            # Almacenar la información preprocesada en la cola
+            song_info = {
+                "title": data.get("title", "Título desconocido"),
+                "url": data["url"],
+                "webpage_url": data["webpage_url"],
+                "duration": duration
+            }
+
+            if ctx.guild.id not in queues:
+                queues[ctx.guild.id] = []
+            queues[ctx.guild.id].append(song_info)
+
+            # Verificar si el bot ya está reproduciendo algo
+            if voice_client.is_playing():
+                await ctx.send(f"Agregado a la cola: {song_info['webpage_url']}")
+            else:
+                # Iniciar la reproducción si no hay nada sonando
+                await play_next(ctx)
+
+        except Exception as e:
+            await ctx.send(f"Error en el comando corxea: {e}")
+
 
 
 
